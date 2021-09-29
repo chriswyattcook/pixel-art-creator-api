@@ -4,29 +4,30 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
+
+	uuid "github.com/nu7hatch/gouuid"
 )
 
-func uploadFile(w http.ResponseWriter, r *http.Request) {
+func uploadImage(w http.ResponseWriter, r *http.Request) {
 	// Parse our multipart form, 10 << 20 specifies a maximum
 	// upload of 10 MB files.
 	r.ParseMultipartForm(10 << 20)
 	// FormFile returns the first file for the given key `myFile`
 	// it also returns the FileHeader so we can get the Filename,
 	// the Header and the size of the file
-	file, handler, err := r.FormFile("myFile")
+	file, _, err := r.FormFile("myFile")
 	if err != nil {
-		fmt.Println("Error Retrieving the File")
-		fmt.Println(err)
-		return
+		fmt.Fprintf(w, "error: %s", err)
 	}
 	defer file.Close()
-	fmt.Printf("Uploaded File: %+v\n", handler.Filename)
-	fmt.Printf("File Size: %+v\n", handler.Size)
-	fmt.Printf("MIME Header: %+v\n", handler.Header)
 
-	// Create a temporary file within our temp-images directory that follows
-	// a particular naming pattern
-	tempFile, err := ioutil.TempFile("temp-images", "upload-*.png")
+	uuid, err := uuid.NewV4()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	tempFile, err := ioutil.TempFile("upload", uuid.String()+"-*.png")
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -40,6 +41,8 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 	// write this byte array to our temporary file
 	tempFile.Write(fileBytes)
-	// return that we have successfully uploaded our file!
-	fmt.Fprintf(w, "Successfully Uploaded File\n")
+
+	imageId := strings.Split(strings.Split(tempFile.Name(), "/")[len(strings.Split(tempFile.Name(), "/"))-1], ".")[0]
+
+	fmt.Fprintf(w, "created: %s", imageId)
 }
